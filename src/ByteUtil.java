@@ -26,16 +26,5 @@ public class ByteUtil {
   public byte[] toByteArray() {
     return out.toByteArray();
   }
-
-  public static void main(String[] args) {
-     ByteUtil b = new ByteUtil();
-     b.u16(0x1234);
-     b.u32(0x04034b50);
-
-     for (byte x: b.toByteArray()) {
-       System.out.printf("%02X ", x);
-     }
-     System.out.println();
-  }
 }
 

@@ -34,14 +34,5 @@ public class BitWriter {
     }
     return out.toByteArray();
   }
-
-  public static void main(String[] args) {
-    BitWriter w = new BitWriter();
-    w.writeHuffman(0b0011, 4);
-
-    for (byte b: w.toByteArray()) {
-      System.out.printf("%02X ", b);
-    }
-  }
 }
 
