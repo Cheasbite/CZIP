@@ -1,6 +1,6 @@
 public class LZ77 {
   // Goal: Find the next byte would always try of find a match
-  // in the last 4GiB of data and encoded them
+  // in the last 32KiB of data and encoded them
 
   static int[] LEN_BASE  = {3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258};
   static int[] LEN_EXTRA = {0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0};
@@ -13,21 +13,50 @@ public class LZ77 {
     int distance;
   }
 
-  // Grouping the same bit/char together in the last 4GiB
+  // or 1 << 15, 2^15 32KiB
+  static final int TABLE_SIZE = 0x8000;
+
+  static int hash(byte[] data, int i) {
+    return ((data[i] & 0xFF) << 10 ^ (data[i+1] & 0xFF) << 5 ^ (data[i+2] & 0xFF)) & (TABLE_SIZE - 1);
+  }
+
+  static void insert(byte[] data, int[] head, int[] prev, int pos) {
+      if (pos + 2 >= data.length) return;  // no valid 3-byte window here
+      int h = hash(data, pos);
+      prev[pos] = head[h];
+      head[h] = pos;
+  }
+
+  // Grouping the same bit/char together in the last 32KiB
   // Only >= 3 is grouped otherwise dropped!
-  static Match findMatch(byte[] data, int i) {
+  // THIS IS THE COMPARER OF THE BUILT TABLE
+  static Match findMatch(byte[] data, int i, int[] head, int[] prev) {
+    final int MAX_CHAIN = 258;
+
     int bestLength = 0;
     int bestDistance = 0;
-    for (int candidate = Math.max(0, i - 32768); candidate < i; candidate++) {
-      int k = 0;
 
-      while ((i + k < data.length && k < 258) && data[candidate + k] == data[i + k]) {
-        k += 1;
-      }
+    if (i+2 < data.length) {
+      int candidate = head[hash(data, i)]; // cadidate is the head most seen value
+      int tries = 0;
 
-      if (k > bestLength) {
-        bestLength = k;
-        bestDistance = i - candidate;
+      while (candidate != -1 && tries < MAX_CHAIN) {
+        if (i - candidate > 0x8000) {
+          break;
+        }
+
+        int k = 0;
+        while ((i + k < data.length && candidate + k < data.length && k < MAX_CHAIN) && data[candidate + k] == data[i + k]) {
+          k += 1;
+        }
+
+        if (k > bestLength) {
+          bestLength = k;
+          bestDistance = i - candidate;
+        }
+
+        candidate = prev[candidate]; // go to that last seen
+        tries += 1;
       }
     }
 
@@ -89,18 +118,6 @@ public class LZ77 {
 
     // distance extra bits
     out.writeBits(distance - DIST_BASE[didx], DIST_EXTRA[didx]);
-  }
-
-
-  public static void main(String[] args) {
-    BitWriter out = new BitWriter();
-    byte[] data1 = "abcabc".getBytes();
-    byte[] data2 = "aaaa".getBytes();
-    Match m = findMatch(data1, 3);
-    Match n = findMatch(data2, 1);
-
-    System.out.println(m.length + " " + m.distance);
-    System.out.println(n.length + " " + n.distance);
   }
 }
 

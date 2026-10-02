@@ -13,14 +13,23 @@ public class Deflate {
     // 10: dynamic huffman
     // 11: Reserved
 
+    int[] head = new int[0x8000]; // the table size thing 2^15
+    int[] prev = new int[data.length];
+    java.util.Arrays.fill(head, -1);
+    java.util.Arrays.fill(prev, -1);
+
     int i = 0;
     while (i < data.length) {
-        LZ77.Match m = LZ77.findMatch(data, i);
+        LZ77.Match m = LZ77.findMatch(data, i, head, prev);
         if (m.length > 0) {
             LZ77.writeMatch(out, m.length, m.distance);
+
+            for (int k=0; k<m.length; k++) {
+              LZ77.insert(data, head, prev, i+k);
+            }
+
             i += m.length;
         } else {
-            // your step-5 literal code here, for data[i]
             int symbol = data[i] & 0xFF;
 
             int code = 0;
@@ -33,6 +42,8 @@ public class Deflate {
               length = 9;
             }
 
+            LZ77.insert(data, head, prev, i);
+
             out.writeHuffman(code, length);
             i += 1;
         }
@@ -41,15 +52,6 @@ public class Deflate {
     out.writeHuffman(0, 7);
 
     return out.toByteArray();
-  }
-
-  public static void main(String[] args) {
-    byte[] data = "abcabc".getBytes();
-    byte[] result = compress(data);
-
-    for (byte b: result) {
-      System.out.printf("%02X ", b);
-    }
   }
 }
 
