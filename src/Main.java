@@ -8,19 +8,19 @@ public class Main {
   }
 
   public static void main(String[] args) throws Exception {
-//    String name = Path.of(args[0]).getFileName().toString();
-//    byte[] nameBytes = name.getBytes(); // filename as bytes
-
-    // Read from a file
-//   byte[] data = Files.readAllBytes(java.nio.file.Path.of(args[0]));
-//    int crc = CRC32.compute(data);
-
-//   byte[] compressed = Deflate.compress(data);
-
-    ByteUtil idk = new ByteUtil();
+    if (args.length < 1) {
+        System.err.println("Usage: java Main <dir|file> [output.zip]");
+        System.exit(1);
+    }
 
     Path root = Path.of(args[0]);
+    String ouputName = args.length >= 2
+      ? args[1]
+      : root.getFileName().toString() + ".zip";
+
     List<Path> files = Files.walk(root).filter(Files::isRegularFile).toList();
+
+    ByteUtil idk = new ByteUtil();
 
     List<Entry> recall = new ArrayList<Entry>();
 
@@ -29,7 +29,13 @@ public class Main {
       byte[] compressed = Deflate.compress(data);
       int crc = CRC32.compute(data);
       int offset = idk.size();
-      String entryName = root.relativize(path).toString().replace('\\', '/');
+
+      String entryName;
+      if (path.equals(root)) {
+          entryName = path.getFileName().toString();
+      } else {
+          entryName = root.relativize(path).toString().replace('\\', '/');
+      }
 
       byte[] nameBytes = entryName.getBytes();
 
@@ -70,7 +76,6 @@ public class Main {
       // write the compressed data to zip
       idk.bytes(compressed);
     }
-
 
     int cdStart = idk.size();
     for (Entry e: recall) {
@@ -133,8 +138,7 @@ public class Main {
     idk.u16(0);
 
     // writer
-    java.nio.file.Files.write(Path.of("Portfolio.zip"), idk.toByteArray());
-
+    java.nio.file.Files.write(Path.of(ouputName), idk.toByteArray());
   }
 }
 
